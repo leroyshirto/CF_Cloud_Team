@@ -47,15 +47,22 @@ def get_local_file(source_path):
 
 
 def upload_file(output_bucket, file_name):
-    output_bucket = "output"
+    parsed_path = urlparse(output_bucket)
+    if parsed_path.scheme == "s3":
+        output_bucket = parsed_path.netloc
+        print("Using Bucket Name =" +
+              output_bucket + " File Name =" + file_name)
 
-    try:
-        with open(file_name, 'rb') as file_data:
-            file_stat = os.stat(file_name)
-            minioClient.put_object(output_bucket, file_name,
-                                   file_data, file_stat.st_size)
-    except ResponseError as err:
-        print(err)
+        try:
+            with open(file_name, 'rb') as file_data:
+                file_stat = os.stat(file_name)
+                minioClient.put_object(output_bucket, file_name,
+                                       file_data, file_stat.st_size)
+        except ResponseError as err:
+            print(err)
+    elif parsed_path.scheme == "":
+        if output_bucket != ".":
+            copy(file_name, output_bucket)
     return True
 
 
@@ -168,7 +175,7 @@ def main():
 
     filename = output.replace("/", "_") + ".npy"
     np.save(filename, combined_results[output])
-    upload_file(filename, args.output_bucket)
+    upload_file(args.output_bucket, filename)
     print("Inference results uploaded to", filename)
     print('Classification accuracy: {:.2f}'.format(
         100*matched_count/total_executed))
