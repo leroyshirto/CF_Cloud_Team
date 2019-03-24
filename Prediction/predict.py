@@ -23,7 +23,8 @@ def get_local_file(source_path):
     if parsed_path.scheme == "s3":
         bucket_name = parsed_path.netloc
         file_name = parsed_path.path[1:]
-        print(f"Extracted Bucket Name = {bucket_name} File Name = {file_name}")
+        print("Extracted Bucket Name =" +
+              bucket_name + " File Name =" + file_name)
 
         try:
             data = minioClient.get_object(bucket_name, file_name)
@@ -49,7 +50,8 @@ def upload_file(output_bucket, file_name):
     parsed_path = urlparse(output_bucket)
     if parsed_path.scheme == "s3":
         output_bucket = parsed_path.netloc
-        print(f"Using Bucket Name = {output_bucket} File Name = {file_name}")
+        print("Using Bucket Name =" +
+              output_bucket + " File Name =" + file_name)
 
         try:
             with open(file_name, 'rb') as file_data:
