@@ -47,22 +47,15 @@ def get_local_file(source_path):
 
 
 def upload_file(output_bucket, file_name):
-    parsed_path = urlparse(output_bucket)
-    if parsed_path.scheme == "s3":
-        output_bucket = parsed_path.netloc
-        print("Using Bucket Name =" +
-              output_bucket + " File Name =" + file_name)
+    output_bucket = "output"
 
-        try:
-            with open(file_name, 'rb') as file_data:
-                file_stat = os.stat(file_name)
-                minioClient.put_object(output_bucket, file_name,
-                                       file_data, file_stat.st_size)
-        except ResponseError as err:
-            print(err)
-    elif parsed_path.scheme == "":
-        if output_bucket != ".":
-            copy(file_name, output_bucket)
+    try:
+        with open(file_name, 'rb') as file_data:
+            file_stat = os.stat(file_name)
+            minioClient.put_object(output_bucket, file_name,
+                                   file_data, file_stat.st_size)
+    except ResponseError as err:
+        print(err)
     return True
 
 
