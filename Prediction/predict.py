@@ -1,4 +1,3 @@
-from openvino.inference_engine import IENetwork, IEPlugin
 import argparse
 import numpy as np
 from urllib.parse import urlparse
@@ -9,6 +8,7 @@ import os
 import json
 from minio import Minio
 from minio.error import ResponseError
+from inference_engine import InferenceEngine
 
 minioClient = Minio('212.227.4.254:9000',
                     access_key='AKIAIOSFODNN7EXAMPLE',
@@ -74,17 +74,9 @@ def main():
     parser.add_argument('--model_xml', type=str, required=True,
                         help='GCS or local path to model graph (.xml)')
     parser.add_argument('--input_numpy_file', type=str, required=True,  # Provided by Fetch Script
-                        help='GCS or local path to input dataset numpy file')
-    parser.add_argument('--label_numpy_file', type=str, required=True,  # Provided by Fetch Script
-                        help='GCS or local path to numpy file with labels')
+                        help='S3 Compatible Bucket or local path to input dataset numpy file')
     parser.add_argument('--output_bucket', type=str, required=True,
                         help='S3 Compatible Bucket or local path to results upload folder')
-    parser.add_argument('--batch_size', type=int, default=1,
-                        help='batch size to be used for inference')
-    parser.add_argument('--scale_div', type=float, default=1,
-                        help='scale the np input by division of by the value')
-    parser.add_argument('--scale_sub', type=float, default=128,
-                        help='scale the np input by substraction of the value')
     args = parser.parse_args()
     print(args)
 
@@ -104,11 +96,6 @@ def main():
     if input_numpy_file == "":
         exit(1)
 
-    label_numpy_file = get_local_file(args.label_numpy_file)
-    print("label_numpy_file", label_numpy_file)
-    if label_numpy_file == "":
-        exit(1)
-
     cpu_extension = "/usr/local/lib/libcpu_extension.so"
 
     plugin = IEPlugin(device=device, plugin_dirs=plugin_dir)
@@ -116,79 +103,16 @@ def main():
         plugin.add_cpu_extension(cpu_extension)
 
     print("inference engine:", model_xml, model_bin, device)
+    engine = InferenceEngine(
+        model_bin=model_bin, model_xml=model_xml, device=device)
 
-    # Read IR
-    print("Reading IR...")
-    net = IENetwork(model=model_xml, weights=model_bin)
-    batch_size = args.batch_size
-    net.batch_size = batch_size
-    print("Model loaded. Batch size", batch_size)
+    # Load NPY
+    raw_frame = np.load(input_numpy_file)
 
-    input_blob = next(iter(net.inputs))
-    output_blob = next(iter(net.outputs))
-    print(output_blob)
-
-    print("Loading IR to the plugin...")
-    exec_net = plugin.load(network=net, num_requests=1)
-
-    print("Loading input numpy")
-    imgs = np.load(input_numpy_file, mmap_mode='r', allow_pickle=False)
-    imgs = (imgs / args.scale_div) - args.scale_div
-    lbs = np.load(label_numpy_file, mmap_mode='r', allow_pickle=False)
-
-    print("Loaded input data", imgs.shape, imgs.dtype,
-          "Min value:", np.min(imgs), "Max value", np.max(imgs))
-
-    combined_results = {}  # dictionary storing results for all model outputs
-    processing_times = np.zeros((0), int)
-    matched_count = 0
-    total_executed = 0
-
-    for x in range(0, imgs.shape[0] - batch_size + 1, batch_size):
-        img = imgs[x:(x + batch_size)]
-        lb = lbs[x:(x + batch_size)]
-        start_time = datetime.datetime.now()
-        results = exec_net.infer(inputs={input_blob: img})
-        end_time = datetime.datetime.now()
-        duration = (end_time - start_time).total_seconds() * 1000
-        print("Inference duration:", duration, "ms")
-        processing_times = np.append(
-            processing_times, np.array([int(duration)]))
-        output = list(results.keys())[0]  # check only one output
-        nu = results[output]
-        for i in range(nu.shape[0]):
-            single_result = nu[[i], ...]
-            ma = np.argmax(single_result)
-            total_executed += 1
-            if ma == lb[i]:
-                matched_count += 1
-                mark_message = "; Correct match."
-            else:
-                mark_message = "; Incorrect match. Should be {} {}".format(
-                    lb[i], classes.imagenet_classes[lb[i]])
-            print("\t", i, classes.imagenet_classes[ma], ma, mark_message)
-        if output in combined_results:
-            combined_results[output] = np.append(combined_results[output],
-                                                 results[output], 0)
-        else:
-            combined_results[output] = results[output]
-
-    filename = output.replace("/", "_") + ".npy"
-    np.save(filename, combined_results[output])
-    upload_file(args.output_bucket, filename)
-    print("Inference results uploaded to", filename)
-    print('Classification accuracy: {:.2f}'.format(
-        100*matched_count/total_executed))
-    print('Average time: {:.2f} ms; average speed: {:.2f} fps'.format(round(np.average(
-        processing_times), 2), round(1000 * batch_size / np.average(processing_times), 2)))
-
-    accuracy = matched_count/total_executed
-    latency = np.average(processing_times)
-    metrics = {'metrics': [{'name': 'accuracy-score', 'numberValue':  accuracy, 'format': "PERCENTAGE"},
-                           {'name': 'latency', 'numberValue':  latency, 'format': "RAW"}]}
-
-    with open('/mlpipeline-metrics.json', 'w') as f:
-        json.dump(metrics, f)
+    # Decode RAW JPEG Frame into frame usable by InferenceEngine
+    frame = cv2.imdecode(raw_frame, 1)
+    result = engine.submit_request(frame=frame, wait=True)
+    print(result)
 
 
 if __name__ == "__main__":

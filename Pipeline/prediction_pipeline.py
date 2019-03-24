@@ -23,14 +23,14 @@ def emotion_pipeline(
 
     fetch_step = dsl.ContainerOp(
         name='fetch',
-        image='library/bash:4.4.23',
-        command=['sh', '-c'],
-        arguments=['touch /tmp/test-output'],
-        file_outputs={'downloaded': '/tmp/test-output'})
+        image='templum/openvino-fetch',
+        command=['python3', 'app.py'],
+        arguments=[],
+        file_outputs={'downloaded': '/tmp/output_file'})
 
     build_step = dsl.ContainerOp(
         name='calc-engine',
-        image='templum/openvino-serve:2',
+        image='templum/openvino-serve:3',
         command=['python3', 'predict.py'],
         arguments=[
             '--model_bin', model_bin,
