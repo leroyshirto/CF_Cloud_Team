@@ -1,4 +1,4 @@
-FROM leroyshirtofh/openvino-serve:2 as DEV
+FROM templum/openvino-base:1 as DEV
 
 FROM ubuntu:16.04 as PROD
 
