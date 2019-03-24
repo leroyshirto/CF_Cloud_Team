@@ -175,7 +175,7 @@ def main():
 
     filename = output.replace("/", "_") + ".npy"
     np.save(filename, combined_results[output])
-    upload_file(filename, args.output_folder)
+    upload_file(filename, args.output_bucket)
     print("Inference results uploaded to", filename)
     print('Classification accuracy: {:.2f}'.format(
         100*matched_count/total_executed))
