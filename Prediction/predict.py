@@ -111,8 +111,8 @@ def main():
 
     index = None
 
-    if infer_engine.submit_request(frame, True):
-        result = infer_engine.fetch_result()
+    if engine.submit_request(frame, True):
+        result = engine.fetch_result()
 
         if result.any():
             result = result[0]
@@ -124,7 +124,7 @@ def main():
                         index = i
     if index is not None:
         # Store JSON
-        return (emotionsVec[index])
+        print(emotionsVec[index])
 
 
 if __name__ == "__main__":
