@@ -96,12 +96,6 @@ def main():
     if input_numpy_file == "":
         exit(1)
 
-    cpu_extension = "/usr/local/lib/libcpu_extension.so"
-
-    plugin = IEPlugin(device=device, plugin_dirs=plugin_dir)
-    if cpu_extension and 'CPU' in device:
-        plugin.add_cpu_extension(cpu_extension)
-
     print("inference engine:", model_xml, model_bin, device)
     engine = InferenceEngine(
         model_bin=model_bin, model_xml=model_xml, device=device)
@@ -111,8 +105,25 @@ def main():
 
     # Decode RAW JPEG Frame into frame usable by InferenceEngine
     frame = cv2.imdecode(raw_frame, 1)
-    result = engine.submit_request(frame=frame, wait=True)
-    print(result)
+
+    emotionsVec = ["neutral", "happy", "sad", "surprise", "anger"]
+
+    index = None
+
+    if infer_engine.submit_request(frame, True):
+        result = infer_engine.fetch_result()
+
+        if result.any():
+            result = result[0]
+            if len(result) == len(emotionsVec):
+                prob_value = 0.0
+                for i in range(len(result)):
+                    if result[i][0][0] > prob_value:
+                        prob_value = result[i][0][0]
+                        index = i
+    if index is not None:
+        # Store JSON
+        return (emotionsVec[index])
 
 
 if __name__ == "__main__":
