@@ -1,6 +1,6 @@
 FROM templum/openvino-base:1 as DEV
 
-FROM ubuntu:16.04 as PROD
+FROM jjanzic/docker-python3-opencv:latest as PROD
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \

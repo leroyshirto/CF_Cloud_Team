@@ -1,14 +1,15 @@
 import argparse
 import numpy as np
-from urllib.parse import urlparse
-import classes
 import datetime
-from shutil import copy
 import os
 import json
+import cv2
+
 from minio import Minio
 from minio.error import ResponseError
 from inference_engine import InferenceEngine
+from shutil import copy
+from urllib.parse import urlparse
 
 minioClient = Minio('212.227.4.254:9000',
                     access_key='AKIAIOSFODNN7EXAMPLE',
