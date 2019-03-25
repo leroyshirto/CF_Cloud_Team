@@ -3,8 +3,8 @@ import numpy as np
 import datetime
 import os
 import json
+import base64
 import cv2
-
 from minio import Minio
 from minio.error import ResponseError
 from inference_engine import InferenceEngine
@@ -108,6 +108,7 @@ def main():
     frame = cv2.imdecode(raw_frame, 1)
 
     emotionsVec = ["neutral", "happy", "sad", "surprise", "anger"]
+    
 
     index = None
 
@@ -122,9 +123,16 @@ def main():
                     if result[i][0][0] > prob_value:
                         prob_value = result[i][0][0]
                         index = i
+
     if index is not None:
-        # Store JSON
-        return (emotionsVec[index])
+        with open('/tmp/output_file', 'w') as file:
+            retval, buffer = cv2.imencode('.jpg', frame)
+            jpg_as_text = base64.b64encode(buffer)
+            results = {
+                'emotion': emotionsVec[index],
+                'image': jpg_as_text
+            }
+            file.write(json.dumps(results))
 
 
 if __name__ == "__main__":

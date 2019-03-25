@@ -21,7 +21,7 @@ def emotion_pipeline(
         arguments=[],
         file_outputs={'downloaded': '/tmp/output_file'})
 
-    build_step = dsl.ContainerOp(
+    prediction_step = dsl.ContainerOp(
         name='calc-engine',
         image='templum/openvino-serve:7',
         command=['python3', 'predict.py'],
@@ -30,6 +30,13 @@ def emotion_pipeline(
             '--model_xml', model_xml,
             '--input_numpy_file', fetch_step.output,
             '--output_bucket', generated_model_dir],
+        file_outputs={'results': '/tmp/output'})
+
+    submit_results_step = dsl.ContainerOp(
+        name='submit-results',
+        image='leroyshirtofh/oisp-results-submission:1',
+        command=['python3', 'app.py'],
+        arguments=['--results_json', prediction_step.output],
         file_outputs={})
 
 
