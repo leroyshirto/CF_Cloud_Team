@@ -27,12 +27,10 @@ from openvino.inference_engine import IENetwork, IEPlugin
 
 class InferenceEngine(object):
 
-    def __init__(self, model, device, async=False):
+    def __init__(self, model_bin, model_xml, device):
 
         log.basicConfig(format="[ %(levelname)s ] %(message)s",
                         level=log.INFO, stream=sys.stdout)
-        model_xml = model
-        model_bin = os.path.splitext(model_xml)[0] + ".bin"
     # Plugin initialization for specified device and load extensions library if specified
         log.info("Initializing plugin for {} device...".format(device))
         self.plugin = IEPlugin(device=device)
@@ -42,16 +40,10 @@ class InferenceEngine(object):
 
         net = IENetwork(model=model_xml, weights=model_bin)
 
-        if self.plugin.device == "CPU":
-            supported_layers = self.plugin.get_supported_layers(net)
-            not_supported_layers = [
-                l for l in layers.keys() if l not in supported_layers]
-            if len(not_supported_layers) != 0:
-                log.error("Following layers are not supported by the plugin for specified device {}:\n {}".
-                          format(self.plugin.device, ', '.join(not_supported_layers)))
-                log.error("Please try to specify cpu extensions library path in demo's command line parameters using -l "
-                          "or --cpu_extension command line argument")
-                sys.exit(1)
+        cpu_extension = "/usr/local/lib/libcpu_extension.so"
+        if cpu_extension and 'CPU' in device:
+            self.plugin.add_cpu_extension(cpu_extension)
+
         assert len(net.inputs.keys(
         )) == 1, "This application supports only single input topologies"
         assert len(
@@ -64,7 +56,7 @@ class InferenceEngine(object):
         self.n, self.c, self.h, self.w = net.inputs[self.input_blob].shape
         del net
 
-        self.async = async
+        self.asynchronous = False
 
         self.cur_request_id = 0
         self.next_request_id = 1
@@ -76,7 +68,7 @@ class InferenceEngine(object):
         in_frame = in_frame.transpose((2, 0, 1))
         in_frame = in_frame.reshape((self.n, self.c, self.h, self.w))
 
-        if self.async:
+        if self.asynchronous:
             self.cur_request_id, self.next_request_id = self.next_request_id, self.cur_request_id
             self.exec_net.start_async(request_id=self.next_request_id, inputs={
                                       self.input_blob: in_frame})
