@@ -22,7 +22,8 @@ class OispDataStreamer:
         self.__account__ = self.__accounts__[0]
         self.set_account_to_use(self.__account__)
         self.__devices__ = self.get_devices()
-        self.file = 'oisp_query_data_{}'.format(datetime.datetime.now())
+        self.file = 'oisp_query_data_{}{}'.format(
+            datetime.datetime.now(), ".npy")
         self.__minioClient__ = Minio('212.227.4.254:9000',
                                      access_key='AKIAIOSFODNN7EXAMPLE',
                                      secret_key='wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
@@ -129,9 +130,9 @@ def main():
     npy_data = pickle.loads(data[-1])[-1]
     numpy.save(oisp.file, npy_data)
     getLogger(__name__).info("Numpy Array: {}".format(npy_data))
-    oisp.upload_file(file_name=f"{oisp.file}.npy")
+    oisp.upload_file(file_name=oisp.file)
     with open('/tmp/output_file', 'w') as file:
-        file.write("s3://input/{}.npy".format(oisp.file))
+        file.write("s3://input/{}".format(oisp.file))
     # pdb.set_trace()
 
 
